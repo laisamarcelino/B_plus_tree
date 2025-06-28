@@ -27,11 +27,14 @@ typedef struct {
     int numNodos; //número total de nós na árvore
 } BPlusTree_t;
 
-registro_t *criarRegistro(int chave, const char modelo[20], int ano, const char cor[20]); //protótipo de função para criar um novo registro
-nodo_t *criarNodo(int folha); //protótipo de função para criar um novo nó (folha ou interno)
+registro_t *criarRegistro(int chave, char modelo[20], int ano, char cor[20]); //protótipo de função para criar um novo registro
+void destroirRegistro(registro_t *registro); //protótipo de função para destruir um registro
+nodo_t *criarNodo(); //protótipo de função para criar um novo nó (folha ou interno)
+void destruirNodo(nodo_t *nodo); //protótipo de função para destruir um nó
 BPlusTree_t *criarArvoreBPlus(); //protótipo de função para criar uma nova árvore B+
+void destruirArvoreBPlus(nodo_t *raiz); //protótipo de função para destruir a árvore B+
 void inserir(BPlusTree_t *arvore, registro_t registro); //protótipo de função para inserir um registro na árvore B+
 registro_t *buscar(BPlusTree_t *arvore, int chave); //protótipo de função para buscar um registro na árvore B+
-void imprimeArvore(BPlusTree_t *arvore); //protótipo de função para imprimir a árvore B+ (para depuração).
+void imprimeArvore(nodo_t *nodo); //protótipo de função para imprimir a árvore B+ (para depuração).
 
 #endif //BPlusTree.h
