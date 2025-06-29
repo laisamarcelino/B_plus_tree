@@ -86,22 +86,24 @@ registro_t *buscar(BPlusTree_t *arvore, int chave) {
 
     nodo_t *atual = arvore->raiz;
 
-    // Percorre a árvore até encontrar o nó folha
-    while (!atual->folha) {
+    while (atual != NULL) {
         int i = 0;
 
-        // Encontra o filho correto para descer
-        while (i < atual->numChaves && chave >= atual->chaves[i]) {
+        // Encontra a posição correta no nó atual
+        while (i < atual->numChaves && atual->chaves[i] < chave) {
             i++;
         }
 
-        atual = atual->filhos[i];
-    }
-
-    // Procura a chave no nó folha
-    for (int i = 0; i < atual->numChaves; i++) {
-        if (atual->chaves[i] == chave) {
+        // Verifica se a chave foi encontrada no nó atual
+        if (i < atual->numChaves && atual->chaves[i] == chave) {
             return atual->registros[i]; // Retorna o registro correspondente
+        }
+
+        // Se não for folha, desce para o próximo nó
+        if (!atual->folha) {
+            atual = atual->filhos[i];
+        } else {
+            break; // Se for folha e não encontrou, a chave não existe
         }
     }
 
