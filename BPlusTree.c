@@ -79,7 +79,34 @@ void destruirArvoreBPlus(nodo_t *raiz){
 //função para inserir um registro na árvore B+
 void inserir(BPlusTree_t *arvore, registro_t registro);
 //função para buscar um registro na árvore B+
-registro_t *buscar(BPlusTree_t *arvore, int chave);
+registro_t *buscar(BPlusTree_t *arvore, int chave) {
+    if (!arvore || !arvore->raiz) {
+        return NULL; // Árvore vazia
+    }
+
+    nodo_t *atual = arvore->raiz;
+
+    // Percorre a árvore até encontrar o nó folha
+    while (!atual->folha) {
+        int i = 0;
+
+        // Encontra o filho correto para descer
+        while (i < atual->numChaves && chave >= atual->chaves[i]) {
+            i++;
+        }
+
+        atual = atual->filhos[i];
+    }
+
+    // Procura a chave no nó folha
+    for (int i = 0; i < atual->numChaves; i++) {
+        if (atual->chaves[i] == chave) {
+            return atual->registros[i]; // Retorna o registro correspondente
+        }
+    }
+
+    return NULL; // Chave não encontrada
+}
 
 //imprime o as chaves de um nodo
 void imprimeArvore(nodo_t *nodo) {
