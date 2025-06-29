@@ -17,12 +17,20 @@ void carregarRegistro(const char *nomeArquivo, BPlusTree_t *arvore) {
 
     // fgets precisa de um buffer para armazenar temporariamente a linha que tá sendo lida do arquivo
     while (fgets(linha, sizeof(linha), arquivo)) {
-        registro_t r;
+        unsigned long long chave;
+        int ano;
+        char modelo[TAM_MODELO], cor[TAM_COR];
 
         linha[strcspn(linha, "\n")] = 0;
-        sscanf(linha, "%d,%19[^,],%d,%19[^\n]", &r.chave, r.modelo, &r.ano, r.cor);
+        if (sscanf(linha, "%llu,%19[^,],%d,%19[^\n]", &chave, modelo, &ano, cor) != 4) {
+            fprintf(stderr, "Erro ao ler linha: %s\n", linha);
+            continue; // Pula linha mal formatada
+        }
+        // Criar registro dinamicamente
+        registro_t *registro = criarRegistro(chave, modelo, ano, cor);
 
-        inserir(arvore, r);
+        // Inserir na árvore
+        inserir(arvore, registro);
     }
 
     fclose(arquivo);
@@ -32,7 +40,13 @@ int main() {
     BPlusTree_t *arvore = criarArvoreBPlus();
 
     const char *nomeArquivo = "registros_carros.txt";
-    carregarRegistro("registros_carros.txt", arvore);
+    carregarRegistro(nomeArquivo, arvore);
+    
+    printf("\n==== Árvore B+ após inserções ====\n");
+    imprimeArvore(arvore->raiz);
+
+    destruirArvoreBPlus(arvore->raiz);
+    free(arvore);
 
     // fazer buscas, impressões e testes
     // obs Elen: para os testes vou gerar um script parecido com os dos prof de prog2

@@ -3,8 +3,9 @@
 #include <string.h>
 #include "BPlusTree.h"
 
+
 //função para criar um novo registro
-registro_t *criarRegistro(int chave, char modelo[20], int ano, char cor[20]){
+registro_t *criarRegistro(unsigned long long chave, const char *modelo, int ano, const char *cor){
     registro_t *registro = (registro_t *)malloc(sizeof(registro_t));
     if (!registro) {
         perror("Erro ao alocar memória para o registro");
@@ -18,7 +19,7 @@ registro_t *criarRegistro(int chave, char modelo[20], int ano, char cor[20]){
 }
 
 //função para destruir um registro
-void destroirRegistro(registro_t *registro){
+void destruirRegistro(registro_t *registro){
     if (registro)
         free(registro);
 }
@@ -47,7 +48,7 @@ void destruirNodo(nodo_t *nodo){
     if (nodo) {
         //Libera os registros associados às chaves
         for (int i = 0; i < nodo->numChaves; i++) {
-            destroirRegistro(nodo->registros[i]);
+            destruirRegistro(nodo->registros[i]);
         }
         free(nodo);
     }
@@ -76,10 +77,121 @@ void destruirArvoreBPlus(nodo_t *raiz){
         destruirNodo(raiz);
     }
 }
+
+// Função que divide o filho do nó 'pai' no índice 'indice'.
+// Usada quando o filho está cheio e precisa ser dividido em dois nós.
+void dividirFilho(nodo_t *pai, int indice) {
+    nodo_t *filho = pai->filhos[indice];
+    nodo_t *novoFilho = criarNodo();
+    novoFilho->folha = filho->folha;
+
+    int meio = (ORDEM - 1) / 2;
+
+    if (filho->folha) {
+        // Copia a segunda metade dos registros e chaves
+        for (int j = meio; j < ORDEM - 1; j++) {
+            novoFilho->chaves[j - meio] = filho->chaves[j];
+            novoFilho->registros[j - meio] = filho->registros[j];
+        }
+
+        novoFilho->numChaves = ORDEM - 1 - meio;
+        filho->numChaves = meio;
+
+        // Encadeamento de folhas
+        novoFilho->proximo = filho->proximo;
+        filho->proximo = novoFilho;
+
+        // Promove a menor chave do novo nó folha
+        for (int j = pai->numChaves; j > indice; j--) {
+            pai->chaves[j] = pai->chaves[j - 1];
+            pai->filhos[j + 1] = pai->filhos[j];
+        }
+
+        pai->chaves[indice] = novoFilho->chaves[0];
+        pai->filhos[indice + 1] = novoFilho;
+        pai->numChaves++;
+    } else {
+        // Nó interno: copia chaves e ponteiros
+        for (int j = meio + 1; j < ORDEM - 1; j++) {
+            novoFilho->chaves[j - (meio + 1)] = filho->chaves[j];
+        }
+        for (int j = meio + 1; j < ORDEM; j++) {
+            novoFilho->filhos[j - (meio + 1)] = filho->filhos[j];
+        }
+
+        novoFilho->numChaves = filho->numChaves - meio - 1;
+        filho->numChaves = meio;
+
+        // Promove chave do meio
+        for (int j = pai->numChaves; j > indice; j--) {
+            pai->chaves[j] = pai->chaves[j - 1];
+            pai->filhos[j + 1] = pai->filhos[j];
+        }
+
+        pai->chaves[indice] = filho->chaves[meio];
+        pai->filhos[indice + 1] = novoFilho;
+        pai->numChaves++;
+    }
+}
+
+// Função para inserir um registro em um nó que ainda não está cheio
+void inserirNaoCheio(nodo_t *nodo, registro_t *registro) {
+    int i = nodo->numChaves - 1;
+
+    if (nodo->folha) {
+        // Inserção ordenada em folha
+        while (i >= 0 && registro->chave < nodo->chaves[i]) {
+            nodo->chaves[i + 1] = nodo->chaves[i];
+            nodo->registros[i + 1] = nodo->registros[i];
+            i--;
+        }
+
+        nodo->chaves[i + 1] = registro->chave;
+        nodo->registros[i + 1] = registro;
+        nodo->numChaves++;
+    } else {
+        // Busca posição para descer
+        while (i >= 0 && registro->chave < nodo->chaves[i]) {
+            i--;
+        }
+        i++;
+
+        // Se o filho estiver cheio, precisa dividir
+        if (nodo->filhos[i]->numChaves == ORDEM - 1) {
+            dividirFilho(nodo, i);
+
+            // Decide em qual metade continuar
+            if (registro->chave > nodo->chaves[i]) {
+                i++;
+            }
+        }
+
+        inserirNaoCheio(nodo->filhos[i], registro);
+    }
+}
+
 //função para inserir um registro na árvore B+
-void inserir(BPlusTree_t *arvore, registro_t registro);
+void inserir(BPlusTree_t *arvore, registro_t *registro) {
+    if (!arvore || !registro) return;
+
+    nodo_t *raiz = arvore->raiz;
+
+    // Caso a raiz esteja cheia
+    if (raiz->numChaves == ORDEM - 1) {
+        nodo_t *novaRaiz = criarNodo();
+        novaRaiz->folha = 0;
+        novaRaiz->filhos[0] = raiz;
+        dividirFilho(novaRaiz, 0);
+        arvore->raiz = novaRaiz;
+        arvore->numNodos++;
+        inserirNaoCheio(novaRaiz, registro);
+    } else {
+        inserirNaoCheio(raiz, registro);
+    }
+}
+
 //função para buscar um registro na árvore B+
-registro_t *buscar(BPlusTree_t *arvore, int chave) {
+registro_t *buscar(BPlusTree_t *arvore, unsigned long long chave) {
     if (!arvore || !arvore->raiz) {
         return NULL; // Árvore vazia
     }
@@ -110,6 +222,7 @@ registro_t *buscar(BPlusTree_t *arvore, int chave) {
     return NULL; // Chave não encontrada
 }
 
+
 //imprime o as chaves de um nodo
 void imprimeArvore(nodo_t *nodo) {
     if (nodo == NULL) {
@@ -119,7 +232,7 @@ void imprimeArvore(nodo_t *nodo) {
     
     printf("Chaves no nó: ");
     for (int i = 0; i < nodo->numChaves; i++) {
-        printf("%d ", nodo->chaves[i]);
+        printf("%llu ", nodo->chaves[i]);
     }
     printf("\n");
     
@@ -127,7 +240,7 @@ void imprimeArvore(nodo_t *nodo) {
     if (nodo->folha) {
         printf("Registros no nó:\n");
         for (int i = 0; i < nodo->numChaves; i++) {
-            printf("Chave: %d, Modelo: %s, Ano: %d, Cor: %s\n",
+            printf("Chave: %llu, Modelo: %s, Ano: %d, Cor: %s\n",
                    nodo->registros[i]->chave,
                    nodo->registros[i]->modelo,
                    nodo->registros[i]->ano,
@@ -141,3 +254,4 @@ void imprimeArvore(nodo_t *nodo) {
         }
     }
 }
+
